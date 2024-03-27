@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>App</title>
+
+  <style>
+    .colorCount {
+      width: 1em;
+      height: 1em;
+      background-color: lightseagreen;
+      text-align: center;
+    }
+
+    .counter {
+      padding: 1em;
+      width: 3em;
+      margin: 1em;
+    }
+
+    .orange {
+      background-color: rgb(224, 159, 38);
+     
+    }
+    .green {
+      background-color: greenyellow;
+    }
+
+    .blue {
+      background-color: dodgerblue;
+    }
+
+  </style>
+</head>
+
+<body>
+  {{ message }}
+  <div class="counter">
+
+  </div>
+  <button class="btn" onclick="command('plus')">+</button>
+  <button class="btn" onclick="command('minus')">-</button>
+  <hr>
+  <div>
+    <input type="text" class="username">
+    <button class="login" onclick="login()">Login</button>
+  </div>
+  <hr>
+  <div>
+
+    <div id="colorCount"></div>
+
+    <div class="colors" onclick="leaveColor(event)" >
+
+    </div>
+
+    <select name="room" id="color">
+      <option value="">select a color</option>
+      <option value="blue">blue</option>
+      <option value="orange">orange</option>
+      <option value="green">green</option>
+    </select>
+    <button class="login" onclick="joinColor()">Join color</button>
+    <button class="login" onclick="sendColor()">Send color</button>
+
+  </div>
+
+</body>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  function command(c) {
+    socket.emit("message", {
+      command: c
+    });
+  }
+
+  const colorElem = document.querySelector("#color")
+  const colorCountElem = document.querySelector("#colorCount")
+
+  function login() {
+    const username = document.querySelector('.username').value;
+
+    socket.emit("login", {
+      username,
+      color: colorElem.value
+    });
+  }
+
+  const colors = {};
+
+  function leaveColor(event) {
+
+    //alert('leaveColor : '  + event.target.dataset.color)
+    const color = event.target.dataset.color;
+    console.log(color);
+    if (color) {
+
+      if (event.target.textContent == "leave") {
+        socket.emit("leaveColor", {
+              // username,
+              color
+            });
+        event.target.textContent = "join"
+      } else {
+        socket.emit("joinColor", {
+              // username,
+              color
+            });
+        event.target.textContent = "leave"
+      }
+
+    }
+
+
+  }
+
+  function joinColor() {
+    const color = colorElem.value;
+    if (color) {
+
+      if (!colors[color]) {
+        socket.emit("joinColor", {
+          // username,
+          color
+        });
+      }
+
+    } else {
+      alert('select a color')
+    }
+  }
+
+  function sendColor() {
+    if (colorElem.value) {
+      socket.emit("sendColor", {
+        // username,
+        color: colorElem.value
+      });
+    } else {
+      alert('select a color')
+    }
+  }
+
+  socket.on('messageReceived', function (msg) {
+    document.querySelector('.counter').textContent = msg.counter;
+
+  });
+
+  socket.on('disable', function () {
+    document.querySelectorAll('.btn').forEach(btn => btn.disabled = true)
+  })
+
+  socket.on('enable', function () {
+    document.querySelectorAll('.btn').forEach(btn => btn.disabled = false)
+  })
+
+  function createColorElement({color, count}) {
+    const colorsElem = document.querySelector('.colors');
+
+    const colorCount = colors[color];
+    const colorCountElem = document.createElement('div');
+    //colorCountElem.id = color;
+    colorCountElem.classList.add('counter');
+    colorCountElem.classList.add(color);
+
+    const counterElem = document.createElement('div');
+    counterElem.id = color;
+    counterElem.innerText = count;
+    // counterElem.classList.add(color);
+    colorCountElem.appendChild(counterElem);
+
+    const button = document.createElement('button')
+    button.textContent = 'leave';
+    button.dataset.color = color; 
+
+    colorCountElem.appendChild(button);
+    colorsElem.appendChild(colorCountElem);
+
+  }
+
+
+  socket.on('colorInfo', function (msg) {
+
+    const colorElement = colors[msg.color];
+    console.log(msg.color, colorElement);
+
+    if (!colorElement) {
+      colors[msg.color] = msg.count;
+      createColorElement(msg);
+    } else {
+      const colorElem = document.querySelector(`#${msg.color}`);
+      if (colorElem) {
+        colorElem.innerText = msg.count
+      }
+    }
+  })
+
+
+</script>
+
+</html>
